@@ -2,7 +2,10 @@
   "name": "chessgame",
   "module": "index.ts",
   "type": "module",
-  "private": true,
+  "private": false,
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
