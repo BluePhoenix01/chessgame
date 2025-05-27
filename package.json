@@ -14,8 +14,6 @@
   },
   "dependencies": {
     "@types/express": "^5.0.2",
-    "@types/morgan": "^1.9.9",
-    "express": "^5.1.0",
-    "morgan": "^1.10.0"
+    "@types/morgan": "^1.9.9"
   }
 }
