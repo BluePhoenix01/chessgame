@@ -1,31 +1,38 @@
-import logo from './logo.svg';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
+import { Chessboard } from "react-chessboard";
 
 function App() {
+  const [position, setPosition] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  const ws = useRef(); 
+  useEffect(() => {
+    ws.current = new WebSocket('ws://localhost:3001/room');
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.fen) {
+        setPosition(data.fen)
+      }
+    } 
+  }, []) 
+  function onPieceDrop(sourceSquare, targetSquare){
+    ws.current.send(JSON.stringify({
+      from: sourceSquare,
+      to: targetSquare,
+      promotion: "q", // always promote to a queen for example simplicity
+    }));
+  }
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <div className='chessboard'>
+        <Chessboard id="BasicBoard" position={position} onPieceDrop={onPieceDrop}/>
+      </div>
       <div className="container">
         <button>Create Room</button>
 
         <div className="join-section">
           <input type="text" placeholder="Enter Room Code" />
           <div className="join-buttons">
-            <button>Join</button>
-            <button>Cancel</button>
+            <button>Join Room</button>
           </div>
         </div>
       </div>

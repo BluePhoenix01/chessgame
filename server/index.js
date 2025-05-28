@@ -1,9 +1,9 @@
-import type { ServerWebSocket } from "bun";
+import { Chess } from "chess.js";
 
-const clients = new Map<string, ServerWebSocket>() 
+const rooms = new Map();
 
 Bun.serve({
-  port: 3000,
+  port: 3001,
   // `routes` requires Bun v1.2.3+
   routes: {
     // Static routes
@@ -45,19 +45,28 @@ Bun.serve({
     return new Response("Not Found", { status: 404 });
   },
   websocket: {
-    open(ws: any) {
-      const id = crypto.randomUUID();
+    open(ws) {
+      // const id = crypto.randomUUID();
+      const id = 1;
       ws.id = id;
-      clients.set(id, ws);
-      ws.send("Welcome");
+      if (!rooms.get(id)){
+        rooms.set(id, { clients: new Set(), game: new Chess() });
+      }
+      rooms.get(id).clients.add(ws);
     },
-    message(ws: any, message) {
-      for (const [id, socket] of clients) {
-        ws.send(message);
+    message(ws, message) {
+      const room = rooms.get(ws.id);
+      const move = JSON.parse(message);
+      const result = room.game.move(move);
+      if (result) {
+        for (const client of room.clients) {
+          client.send(JSON.stringify({ result, fen: room.game.fen() }));
+        }
       }
     },
-    close(ws: any, code, message) {
-      clients.delete(ws.id);
+    close(ws, code, message) {
+      const room = rooms.get(ws.id);
+      room.clients.delete(ws);
     },
   },
 });

@@ -4,7 +4,7 @@
   "type": "module",
   "private": false,
   "scripts": {
-    "dev": "bun --hot index.ts"
+    "dev": "bun --hot index.js"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@types/express": "^5.0.2",
-    "@types/morgan": "^1.9.9"
+    "@types/morgan": "^1.9.9",
+    "chess.js": "^1.2.0"
   }
 }
