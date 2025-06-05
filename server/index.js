@@ -1,6 +1,10 @@
 import { Chess } from "chess.js";
+import { Database } from "bun:sqlite";
 
 const rooms = new Map();
+const db = new Database("mydb.sqlite", { create: true, strict: true, } );
+
+db.exec("PRAGMA journal_mode = WAL;");
 
 Bun.serve({
   port: 3001,
