@@ -1,10 +1,13 @@
 import { Chess } from "chess.js";
 import { Database } from "bun:sqlite";
+import jwt from "jsonwebtoken";
 
 const rooms = new Map();
 const db = new Database("mydb.sqlite", { create: true, strict: true, } );
+const JWT_SECRET = "ajyvshckano918uisq";
 
 db.exec("PRAGMA journal_mode = WAL;");
+db.exec("PRAGMA foreign_keys = ON;");
 
 Bun.serve({
   port: 3001,
@@ -44,6 +47,39 @@ Bun.serve({
       });
     },
 
+    "/signup": {
+      POST: async (req) => {
+        const { username, email, password } = await req.json();
+        const hashedPassword = await Bun.password.hash(password, {
+          algorithm: "bcrypt",
+          cost: 9,
+        });        
+        try {
+          db.query(
+            `INSERT INTO users (username, email, password_hash) VALUES (?1, ?2, ?3);`,
+          ).run(username, email, hashedPassword);
+          return Response.json({ message: "User registered successfully" }, { status: 200 , headers: { "Content-Type": "application/json"}});
+        } 
+        catch (err) {
+          return Response.json({error: "User already exists"}, { status: 409 , headers: { "Content-Type": "application/json"}});
+        }
+      }
+    },
+    "/login": {
+      POST: async (req) => {
+        const {username, password} = await req.json();
+        const user = db.query(`SELECT * FROM users WHERE username = ?1`).get(username);
+        if (!user) {
+          return Response.json({error: "Invalid Credentials"}, { status: 401 , headers: { "Content-Type": "application/json"}});
+        }
+        const isPasswordValid = await Bun.password.verify(password, user.password_hash);
+        if (!isPasswordValid) {
+          return Response.json({error: "Invalid Credentials"}, { status: 401 , headers: { "Content-Type": "application/json"}});
+        }
+        const token = jwt.sign({userId: user.id, username: user.username}, JWT_SECRET, {expiresIn: "1h"});
+        return Response.json({token}, { status: 200 , headers: { "Content-Type": "application/json"}});
+      }
+    },
 
     "/": (req) => {
       return new Response("Hello! World");

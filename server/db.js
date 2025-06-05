@@ -4,7 +4,7 @@ const db = new Database("mydb.sqlite", { create: true, strict: true, } );
 
 db.exec("PRAGMA journal_mode = WAL;");
 db.exec("PRAGMA foreign_keys = ON;");
-db.exec(`CREATE TABLE IF NOT EXISTS users (
+db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
@@ -12,7 +12,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );`);
 
-db.exec(`CREATE TABLE IF NOT EXISTS games (
+db.run(`CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     white_player_id INTEGER NOT NULL,
     black_player_id INTEGER NOT NULL,
