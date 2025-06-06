@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
+import useLocalStorage from "./hooks/useLocalStorage";
 
 function Login() {
+  let [token, setToken] = useLocalStorage("token");
   let navigate = useNavigate();
   const [isSignup, setIsSignup] = useState(false);
   const [formData, setFormData] = useState({
@@ -32,11 +34,13 @@ function Login() {
         },
         body: JSON.stringify(formData),
       }).then((res) => {
-        if (res.ok) {
-          navigate("/");
-        } else {
+        if (!res.ok) {
           navigate("/login");
         }
+        return res.json();
+      }).then((data) => {
+        setToken(data.accessToken);
+        navigate("/");
       });
     } else {
       fetch("http://localhost:3001/login", {
@@ -46,11 +50,13 @@ function Login() {
         },
         body: JSON.stringify(formData),
       }).then((res) => {
-        if (res.ok) {
-          navigate("/");
-        } else {
+        if (!res.ok) {
           navigate("/login");
         }
+        return res.json();
+      }).then((data) => {
+        setToken(data.accessToken);
+        navigate("/");
       });
     }
   };
