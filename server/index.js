@@ -9,9 +9,10 @@ const ACCESS_TOKEN_SECRET = "ajyvshckano918uisq";
 const REFRESH_TOKEN_SECRET = "iusbac8hgg19qbc";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "http://localhost:3000",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
 };
 
 db.exec("PRAGMA journal_mode = WAL;");
@@ -19,6 +20,7 @@ db.exec("PRAGMA foreign_keys = ON;");
 
 Bun.serve({
   port: 3001,
+  hostname: "localhost",
   // `routes` requires Bun v1.2.3+
   routes: {
     // Static routes
@@ -53,7 +55,7 @@ Bun.serve({
       });
     },
 
-    "/signup": {
+    "/api/signup": {
       POST: async (req) => {
         const { username, email, password } = await req.json();
         const hashedPassword = await Bun.password.hash(password, {
@@ -84,7 +86,12 @@ Bun.serve({
               status: 200,
               headers: {
                 "Content-Type": "application/json",
-                "Set-Cookie": `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`,
+                "Set-Cookie": Bun.Cookie.from("refreshToken", refreshToken, {
+                  httpOnly: true,
+                  sameSite: "strict",
+                  maxAge: 604800,
+                  path: "/",
+                }),
                 ...corsHeaders,
               },
             }
@@ -103,7 +110,7 @@ Bun.serve({
         return new Response(null, { status: 204, headers: corsHeaders });
       },
     },
-    "/login": {
+    "/api/login": {
       POST: async (req) => {
         const { username, password } = await req.json();
         const user = db
@@ -147,7 +154,12 @@ Bun.serve({
             status: 200,
             headers: {
               "Content-Type": "application/json",
-              "Set-Cookie": `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`,
+              "Set-Cookie": Bun.Cookie.from("refreshToken", refreshToken, {
+                httpOnly: true,
+                sameSite: "strict",
+                maxAge: 604800,
+                path: "/",
+              }),
               ...corsHeaders,
             },
           }
@@ -157,7 +169,78 @@ Bun.serve({
         return new Response(null, { status: 204, headers: corsHeaders });
       },
     },
-
+    "/verify": {
+      GET: (req) => {
+        const cookies = req.cookies;
+        if (!cookies.has("refreshToken")) {
+          return Response.json(
+            { error: "Unauthorized" },
+            {
+              status: 401,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+          );
+        }
+        try {
+          const accessToken = req.headers.get("Authorization").split(" ")[1];
+          jwt.verify(accessToken, ACCESS_TOKEN_SECRET);
+          return Response.json(
+            { accessToken },
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+          );
+        } catch (err) {}
+        const refreshToken = cookies.get("refreshToken");
+        try {
+          const data = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+          const newAccessToken = jwt.sign(
+            { userId: data.userId, username: data.username },
+            ACCESS_TOKEN_SECRET,
+            { expiresIn: "15m" }
+          );
+          return Response.json(
+            { accessToken: newAccessToken },
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+          );
+        } catch (err) {
+          return Response.json(
+            { error: "Unauthorized" },
+            {
+              status: 401,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            }
+          );
+        }
+      },
+      OPTIONS: () => {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      },
+    },
+    "/api/logout": {
+      POST: (req) => {
+        return new Response("Logged out", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain",
+            "Set-Cookie": Bun.Cookie.from("refreshToken", "", {
+              httpOnly: true,
+              sameSite: "strict",
+              maxAge: 0,
+              path: "/",
+            }),
+            ...corsHeaders,
+          },
+        });
+      },
+      OPTIONS: () => {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      },
+    },
     "/": (req) => {
       return new Response("Hello! World");
     },
@@ -191,6 +274,7 @@ Bun.serve({
       } else {
         ws.side = "spectator";
       }
+
       rooms.get(id).clients.add(ws);
       ws.send(JSON.stringify({ side: ws.side }));
     },
@@ -201,7 +285,7 @@ Bun.serve({
         ws.token = messageObj.token;
         return;
       }
-      console.log(messageObj);
+
       const authData = jwt.verify(ws.token, ACCESS_TOKEN_SECRET);
       if (!authData) {
         return;
@@ -210,7 +294,13 @@ Bun.serve({
         return;
       }
       const move = messageObj;
-      const result = room.game.move(move);
+      let result;
+      try {
+        result = room.game.move(move);
+      } catch {
+        result = null;
+      }
+
       if (room.game.isGameOver()) {
         let gameResult = "*";
 
@@ -233,10 +323,12 @@ Bun.serve({
           const data = jwt.verify(client.token, ACCESS_TOKEN_SECRET);
           users[client.side] = data.userId;
         }
-          
-        const query = db.query(
-          "INSERT INTO games (white_player_id, black_player_id, result, moves) VALUES (?1, ?2, ?3, ?4);",
-        ).run(users.w, users.b, gameResult, room.game.pgn());
+        room.game.setHeader("Result", gameResult); // doesnt work
+        const query = db
+          .query(
+            "INSERT INTO games (white_player_id, black_player_id, result, moves) VALUES (?1, ?2, ?3, ?4);"
+          )
+          .run(users.w, users.b, gameResult, room.game.pgn());
       }
       if (result) {
         for (const client of room.clients) {

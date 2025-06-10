@@ -3,8 +3,11 @@ import './Room.css';
 import { Chessboard } from "react-chessboard";
 import { useParams } from 'react-router';
 import useLocalStorage from './hooks/useLocalStorage';
+import { useNavigate } from 'react-router';
+import Navbar from './components/Navbar';
 
 function Room() {
+  let navigate = useNavigate();
   const [token, setToken] = useLocalStorage("token");
   const [position, setPosition] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
   const [side, setSide] = useState('white');
@@ -14,6 +17,22 @@ function Room() {
     if (ws.current != null) {
       return;
     }
+    fetch("http://localhost:3001/verify", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+      mode: "cors",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        if (data.accessToken) {
+          setToken(data.accessToken);
+          return;
+        }
+        navigate("/login");
+      });
     ws.current = new WebSocket(`ws://localhost:3001/room?roomId=${roomId}`);
     ws.current.onopen = () => {
       ws.current.send(JSON.stringify({ type: "auth", token }));
@@ -40,9 +59,11 @@ function Room() {
       to: targetSquare,
       promotion: "q", // always promote to a queen for example simplicity
     }));
+    return true;
   }
   return (
     <div className="Room">
+      <Navbar />
       <div className='chessboard'>
         <Chessboard boardWidth={800} position={position} onPieceDrop={onPieceDrop} boardOrientation={side}/>
       </div>
