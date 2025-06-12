@@ -1,12 +1,10 @@
 import { Chess } from "chess.js";
 import { Database } from "bun:sqlite";
 import jwt from "jsonwebtoken";
+import { authRoutes } from "./routes/auth";
 
 const rooms = new Map();
 const db = new Database("mydb.sqlite", { create: true, strict: true });
-
-const ACCESS_TOKEN_SECRET = "ajyvshckano918uisq";
-const REFRESH_TOKEN_SECRET = "iusbac8hgg19qbc";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "http://localhost:3000",
@@ -26,24 +24,7 @@ Bun.serve({
     // Static routes
     "/api/status": new Response("OK"),
 
-    "/user": {
-      POST: async (req) => {
-        const userdata = await req.json();
-        return new Response(`Creating user: ${JSON.stringify(userdata)}`);
-      },
-    },
-
-    // Dynamic routes
-    "/user/:id": {
-      GET: (req) => {
-        return new Response(`Hello User ${req.params.id}!`);
-      },
-      PUT: async (req) => {
-        const id = req.params.id;
-        const userdata = await req.json();
-        return new Response(`Updating user ${id}: ${JSON.stringify(userdata)}`);
-      },
-    },
+    ...authRoutes,
 
     "/createroom": (_req) => {
       const roomId = crypto.randomUUID();
@@ -54,201 +35,7 @@ Bun.serve({
         },
       });
     },
-
-    "/api/signup": {
-      POST: async (req) => {
-        const { username, email, password } = await req.json();
-        const hashedPassword = await Bun.password.hash(password, {
-          algorithm: "bcrypt",
-          cost: 9,
-        });
-        try {
-          db.query(
-            `INSERT INTO users (username, email, password_hash) VALUES (?1, ?2, ?3);`
-          ).run(username, email, hashedPassword);
-          const user = db
-            .query(`SELECT * FROM users WHERE username = ?1;`)
-            .get(username);
-          const accessToken = jwt.sign(
-            { userId: user.id, username: user.username },
-            ACCESS_TOKEN_SECRET,
-            { expiresIn: "15m" }
-          );
-          const refreshToken = jwt.sign(
-            { userId: user.id, username: user.username },
-            REFRESH_TOKEN_SECRET,
-            { expiresIn: "7d" }
-          );
-          return Response.json(
-            { message: "User registered successfully" },
-            { accessToken },
-            {
-              status: 200,
-              headers: {
-                "Content-Type": "application/json",
-                "Set-Cookie": Bun.Cookie.from("refreshToken", refreshToken, {
-                  httpOnly: true,
-                  sameSite: "strict",
-                  maxAge: 604800,
-                  path: "/",
-                }),
-                ...corsHeaders,
-              },
-            }
-          );
-        } catch (err) {
-          return Response.json(
-            { error: "User already exists" },
-            {
-              status: 409,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        }
-      },
-      OPTIONS: () => {
-        return new Response(null, { status: 204, headers: corsHeaders });
-      },
-    },
-    "/api/login": {
-      POST: async (req) => {
-        const { username, password } = await req.json();
-        const user = db
-          .query(`SELECT * FROM users WHERE username = ?1`)
-          .get(username);
-        if (!user) {
-          return Response.json(
-            { error: "Invalid Credentials" },
-            {
-              status: 401,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        }
-        const isPasswordValid = await Bun.password.verify(
-          password,
-          user.password_hash
-        );
-        if (!isPasswordValid) {
-          return Response.json(
-            { error: "Invalid Credentials" },
-            {
-              status: 401,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        }
-        const accessToken = jwt.sign(
-          { userId: user.id, username: user.username },
-          ACCESS_TOKEN_SECRET,
-          { expiresIn: "15m" }
-        );
-        const refreshToken = jwt.sign(
-          { userId: user.id, username: user.username },
-          REFRESH_TOKEN_SECRET,
-          { expiresIn: "7d" }
-        );
-        return Response.json(
-          { accessToken },
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-              "Set-Cookie": Bun.Cookie.from("refreshToken", refreshToken, {
-                httpOnly: true,
-                sameSite: "strict",
-                maxAge: 604800,
-                path: "/",
-              }),
-              ...corsHeaders,
-            },
-          }
-        );
-      },
-      OPTIONS: () => {
-        return new Response(null, { status: 204, headers: corsHeaders });
-      },
-    },
-    "/verify": {
-      GET: (req) => {
-        const cookies = req.cookies;
-        if (!cookies.has("refreshToken")) {
-          return Response.json(
-            { error: "Unauthorized" },
-            {
-              status: 401,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        }
-        try {
-          const accessToken = req.headers.get("Authorization").split(" ")[1];
-          jwt.verify(accessToken, ACCESS_TOKEN_SECRET);
-          return Response.json(
-            { accessToken },
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        } catch (err) {}
-        const refreshToken = cookies.get("refreshToken");
-        try {
-          const data = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
-          const newAccessToken = jwt.sign(
-            { userId: data.userId, username: data.username },
-            ACCESS_TOKEN_SECRET,
-            { expiresIn: "15m" }
-          );
-          return Response.json(
-            { accessToken: newAccessToken },
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        } catch (err) {
-          return Response.json(
-            { error: "Unauthorized" },
-            {
-              status: 401,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        }
-      },
-      OPTIONS: () => {
-        return new Response(null, { status: 204, headers: corsHeaders });
-      },
-    },
-    "/api/logout": {
-      POST: (req) => {
-        return new Response("Logged out", {
-          status: 200,
-          headers: {
-            "Content-Type": "text/plain",
-            "Set-Cookie": Bun.Cookie.from("refreshToken", "", {
-              httpOnly: true,
-              sameSite: "strict",
-              maxAge: 0,
-              path: "/",
-            }),
-            ...corsHeaders,
-          },
-        });
-      },
-      OPTIONS: () => {
-        return new Response(null, { status: 204, headers: corsHeaders });
-      },
-    },
-    "/": (req) => {
-      return new Response("Hello! World");
-    },
-
-    // Wildcard route for all routes that start with "/api/" and aren't otherwise matched
-    "/api/*": Response.json({ message: "Not found" }, { status: 404 }),
   },
-
   // (optional) fallback for unmatched routes:
   // Required if Bun's version < 1.2.3
   fetch(req, server) {
@@ -323,7 +110,7 @@ Bun.serve({
           const data = jwt.verify(client.token, ACCESS_TOKEN_SECRET);
           users[client.side] = data.userId;
         }
-        room.game.setHeader("Result", gameResult); // doesnt work
+        room.game.setHeader("Result", gameResult);
         const query = db
           .query(
             "INSERT INTO games (white_player_id, black_player_id, result, moves) VALUES (?1, ?2, ?3, ?4);"

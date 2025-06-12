@@ -9,7 +9,7 @@ function App() {
   const [text, setText] = useState("");
   let [token, setToken] = useLocalStorage("token");
   useEffect(() => {
-    fetch("http://localhost:3001/verify", {
+    fetch("/auth/verify", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -43,8 +43,7 @@ function App() {
         </div>
         <button
           onClick={() => {
-            let roomId = "";
-            fetch("http://localhost:3001/createroom", { method: "POST" })
+            fetch("/createroom", { method: "POST" })
               .then((res) => res.json())
               .then((data) => navigate(`/room/${data.roomId}`));
           }}

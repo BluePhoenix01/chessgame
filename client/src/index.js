@@ -12,7 +12,8 @@ root.render(
       <Routes>
         <Route path='/' element={<App />}/>
         <Route path='/room/:roomId' element={<Room />}/>
-        <Route path='/login' element={<Login />}/>
+        <Route path='/login' element={<Login isLogin={true}/>}/>
+        <Route path='/signup' element={<Login isLogin={false} />}/>
       </Routes>
     </BrowserRouter>
 );

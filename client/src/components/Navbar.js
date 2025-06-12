@@ -12,7 +12,7 @@ function Navbar() {
     setIsLoggedIn(prev => !prev);
     if (isLoggedIn) {
       setToken('');
-      fetch('http://localhost:3001/api/logout', {
+      fetch('/auth/logout', {
         method: "POST",
         credentials: "include",
         mode: "cors",

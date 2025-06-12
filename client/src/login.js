@@ -3,20 +3,16 @@ import { useNavigate } from "react-router";
 import useLocalStorage from "./hooks/useLocalStorage";
 import Navbar from "./components/Navbar";
 
-function Login() {
+function Login({ isLogin }) {
   let [token, setToken] = useLocalStorage("token");
   let navigate = useNavigate();
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignup, setIsSignup] = useState(isLogin ? false : true);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
   });
-  // useEffect(() => {
-  //   if (token) {
-  //     navigate("/");
-  //   }
-  // }, [token]);
+
   const toggleForm = () => {
     setIsSignup(!isSignup);
     setFormData({ username: "", email: "", password: "" }); // reset fields
@@ -32,7 +28,7 @@ function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isSignup) {
-      fetch("http://localhost:3001/api/signup", {
+      fetch("/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -52,7 +48,7 @@ function Login() {
           navigate("/");
         });
     } else {
-      fetch("http://localhost:3001/api/login", {
+      fetch("/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
