@@ -5,53 +5,71 @@ import useLocalStorage from "./hooks/useLocalStorage";
 import Navbar from "./components/Navbar";
 
 function App() {
-  let navigate = useNavigate();
+  const navigate = useNavigate();
   const [text, setText] = useState("");
-  let [token, setToken] = useLocalStorage("token");
+  const [token, setToken] = useLocalStorage("token");
+
   useEffect(() => {
     fetch("/auth/verify", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
       mode: "cors",
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
         if (data.accessToken) {
           setToken(data.accessToken);
-          return;
+        } else {
+          navigate("/login");
         }
-        navigate("/login");
       });
-  }, []);
+  }, [token, navigate, setToken]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    navigate(`/room/${text}`);
+  };
+
+  const handleCreate = () => {
+    fetch("/createroom", { method: "POST" })
+      .then((res) => res.json())
+      .then((data) => navigate(`/room/${data.roomId}`));
+  };
+
   return (
-    <div className="App">
+    <>
       <Navbar />
-      <div className="container">
-        <div className="join-section">
-          <input
-            type="text"
-            placeholder="Enter Room Code"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <div className="join-buttons">
-            <button onClick={() => navigate(`/room/${text}`)}>Join Room</button>
-          </div>
+      <div className="App">
+        <div className="form-container">
+          <h2>Join or Create a Room</h2>
+          <form onSubmit={handleSubmit} className="room-form">
+            <input
+              type="text"
+              placeholder="Enter Room Code"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              required
+            />
+            <div className="buttons">
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={!text.trim()}
+              >
+                Join Room
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={handleCreate}
+              >
+                Create Room
+              </button>
+            </div>
+          </form>
         </div>
-        <button
-          onClick={() => {
-            fetch("/createroom", { method: "POST" })
-              .then((res) => res.json())
-              .then((data) => navigate(`/room/${data.roomId}`));
-          }}
-        >
-          Create Room
-        </button>
       </div>
-    </div>
+    </>
   );
 }
 

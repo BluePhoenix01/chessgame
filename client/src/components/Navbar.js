@@ -1,30 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import './Navbar.css';
-import useLocalStorage from '../hooks/useLocalStorage';
-import { useNavigate } from 'react-router';
-import { Link } from 'react-router';
+import React, { useEffect, useState } from "react";
+import "./Navbar.css";
+import useLocalStorage from "../hooks/useLocalStorage";
+import { useNavigate } from "react-router";
+import { Link } from "react-router";
 
 function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useLocalStorage("token");
   const navigate = useNavigate();
-  
+
   const handleAuthClick = () => {
     if (isLoggedIn) {
-      setToken('');
-      fetch('/auth/logout', {
+      setToken("");
+      fetch("/auth/logout", {
         method: "POST",
         credentials: "include",
         mode: "cors",
       }).then(() => {
         setIsLoggedIn(false);
-        navigate('/login');
+        navigate("/login");
       });
-     } else {
+    } else {
       if (token && token !== "") {
         setIsLoggedIn(true);
       }
-      navigate('/login');
+      navigate("/login");
     }
   };
 
@@ -35,18 +35,19 @@ function Navbar() {
       setIsLoggedIn(false);
     }
   }, [token]);
-  
+
   return (
     <nav className="navbar">
-      <div className="navbar-logo">ChessMate</div>
+      <Link to="/" className="home-link">
+        <div className="navbar-logo">ChessMate</div>
+      </Link>
       <ul className="navbar-links">
-        <li><Link href="/">Home</Link></li>
+        <button className="auth-button" onClick={handleAuthClick}>
+          {isLoggedIn ? "Logout" : "Login"}
+        </button>
       </ul>
-      <button className="auth-button" onClick={handleAuthClick}>
-        {isLoggedIn ? 'Logout' : 'Login'}
-      </button>
     </nav>
   );
-};
+}
 
 export default Navbar;

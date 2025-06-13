@@ -26,14 +26,19 @@ Bun.serve({
 
     ...authRoutes,
 
-    "/createroom": (_req) => {
-      const roomId = crypto.randomUUID();
-      return new Response(JSON.stringify({ roomId }), {
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      });
+    "/createroom": {
+      POST: (_req) => {
+        const roomId = crypto.randomUUID();
+        return new Response(JSON.stringify({ roomId }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        });
+      },
+      OPTIONS: () => {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      },
     },
   },
   // (optional) fallback for unmatched routes:
@@ -63,63 +68,84 @@ Bun.serve({
       }
 
       rooms.get(id).clients.add(ws);
-      ws.send(JSON.stringify({ side: ws.side }));
+      ws.send(JSON.stringify({ type: "side", side: ws.side }));
     },
     message(ws, message) {
       const room = rooms.get(ws.data);
       const messageObj = JSON.parse(message);
+
       if (messageObj.type === "auth" && messageObj.token !== "") {
         ws.token = messageObj.token;
         return;
       }
 
-      const authData = jwt.verify(ws.token, ACCESS_TOKEN_SECRET);
+      const authData = jwt.verify(ws.token, Bun.env.ACCESS_TOKEN_SECRET);
       if (!authData) {
         return;
       }
-      if (room.game.turn() !== ws.side) {
-        return;
-      }
-      const move = messageObj;
-      let result;
-      try {
-        result = room.game.move(move);
-      } catch {
-        result = null;
-      }
 
-      if (room.game.isGameOver()) {
-        let gameResult = "*";
-
-        if (room.game.isCheckmate()) {
-          gameResult = room.game.turn() === "w" ? "0-1" : "1-0";
-        } else if (room.game.isStalemate()) {
-          gameResult = "1/2-1/2";
-        } else if (room.game.isThreefoldRepetition()) {
-          gameResult = "1/2-1/2";
-        } else if (room.game.inSufficientMaterial()) {
-          gameResult = "1/2-1/2";
-        } else if (room.game.isDraw()) {
-          gameResult = "1/2-1/2";
+      if (messageObj.type === "move") {
+        if (room.game.turn() !== ws.side) {
+          return;
         }
-        const users = {};
+        let result;
+        try {
+          result = room.game.move(messageObjmove);
+        } catch {
+          result = null;
+        }
+
+        if (room.game.isGameOver()) {
+          let gameResult = "*";
+
+          if (room.game.isCheckmate()) {
+            gameResult = room.game.turn() === "w" ? "0-1" : "1-0";
+          } else if (room.game.isStalemate()) {
+            gameResult = "1/2-1/2";
+          } else if (room.game.isThreefoldRepetition()) {
+            gameResult = "1/2-1/2";
+          } else if (room.game.inSufficientMaterial()) {
+            gameResult = "1/2-1/2";
+          } else if (room.game.isDraw()) {
+            gameResult = "1/2-1/2";
+          }
+          const users = {};
+          for (const client of room.clients) {
+            if (client.side === "spectator") {
+              continue;
+            }
+            const data = jwt.verify(client.token, ACCESS_TOKEN_SECRET);
+            users[client.side] = data.userId;
+          }
+          room.game.setHeader("Result", gameResult);
+          const query = db
+            .query(
+              "INSERT INTO games (white_player_id, black_player_id, result, moves) VALUES (?1, ?2, ?3, ?4);"
+            )
+            .run(users.w, users.b, gameResult, room.game.pgn());
+        }
+        if (result) {
+          for (const client of room.clients) {
+            client.send(
+              JSON.stringify({ type: "position", result, fen: room.game.fen() })
+            );
+          }
+        }
+      }
+      if (messageObj.type === "chat") {
+        let username;
+        try {
+          const data = jwt.verify(ws.token, Bun.env.ACCESS_TOKEN_SECRET);
+          username = data.username;
+        } catch {
+          username = "Anonymous";
+        }
+
         for (const client of room.clients) {
           if (client.side === "spectator") {
             continue;
           }
-          const data = jwt.verify(client.token, ACCESS_TOKEN_SECRET);
-          users[client.side] = data.userId;
-        }
-        room.game.setHeader("Result", gameResult);
-        const query = db
-          .query(
-            "INSERT INTO games (white_player_id, black_player_id, result, moves) VALUES (?1, ?2, ?3, ?4);"
-          )
-          .run(users.w, users.b, gameResult, room.game.pgn());
-      }
-      if (result) {
-        for (const client of room.clients) {
-          client.send(JSON.stringify({ result, fen: room.game.fen() }));
+          client.send(JSON.stringify({ ...messageObj, username }));
         }
       }
     },
