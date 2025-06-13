@@ -4,7 +4,8 @@
   "type": "module",
   "private": false,
   "scripts": {
-    "dev": "bun --hot index.js"
+    "dev": "bun --hot index.js",
+    "start": "bun index.js"
   },
   "devDependencies": {
     "@types/bun": "latest"

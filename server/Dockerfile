@@ -8,4 +8,4 @@ RUN bun install
 
 EXPOSE 3001
 
-CMD ["bun", "run", "index.js"]
+CMD ["bun", "run", "start"]

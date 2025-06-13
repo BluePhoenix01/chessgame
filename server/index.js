@@ -18,7 +18,7 @@ db.exec("PRAGMA foreign_keys = ON;");
 
 Bun.serve({
   port: 3001,
-  hostname: "localhost",
+  hostname: "0.0.0.0",
   // `routes` requires Bun v1.2.3+
   routes: {
     // Static routes

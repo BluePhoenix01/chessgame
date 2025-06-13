@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './Navbar.css';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 
 function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -9,7 +10,6 @@ function Navbar() {
   const navigate = useNavigate();
   
   const handleAuthClick = () => {
-    setIsLoggedIn(prev => !prev);
     if (isLoggedIn) {
       setToken('');
       fetch('/auth/logout', {
@@ -17,9 +17,13 @@ function Navbar() {
         credentials: "include",
         mode: "cors",
       }).then(() => {
+        setIsLoggedIn(false);
         navigate('/login');
       });
      } else {
+      if (token && token !== "") {
+        setIsLoggedIn(true);
+      }
       navigate('/login');
     }
   };
@@ -36,7 +40,7 @@ function Navbar() {
     <nav className="navbar">
       <div className="navbar-logo">ChessMate</div>
       <ul className="navbar-links">
-        <li><a href="/">Home</a></li>
+        <li><Link href="/">Home</Link></li>
       </ul>
       <button className="auth-button" onClick={handleAuthClick}>
         {isLoggedIn ? 'Logout' : 'Login'}
