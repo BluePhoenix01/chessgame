@@ -38,20 +38,27 @@ function Room() {
         ws.current.send(JSON.stringify({ type: "auth", token }));
       ws.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === "position") setPosition(data.fen);
-        else if (data.type === "side") setSide(data.side === "w" ? "white" : "black");
-        else if (data.type === "chat") {
+        if (data.type === "join") {
+          setSide(data.side === "w" ? "white" : "black");
+          setPosition(data.fen);
+        } else if (data.type === "position") setPosition(data.fen);
+        else if (data.type === "resign") {
+          alert(
+            `${data.winner === side ? "You win!" : "You lost by resignation."}`
+          );
+          setPosition(data.fen);
+        } else if (data.type === "chat") {
           setChatMessages((messages) => [...messages, data]);
         }
       };
     }
-  }, [roomId, token, setToken, navigate]);
+  }, [roomId]);
 
   const onPieceDrop = (sourceSquare, targetSquare) => {
     ws.current.send(
       JSON.stringify({
         type: "move",
-        move: { sourceSquare, targetSquare, promotion: "q" },
+        move: { from: sourceSquare, to: targetSquare, promotion: "q" },
       })
     );
     return true;
@@ -59,9 +66,7 @@ function Room() {
   const sendChat = (event) => {
     event.preventDefault();
     if (!chatInput.trim()) return;
-    ws.current.send(
-      JSON.stringify({ type: "chat", text: chatInput.trim() })
-    );
+    ws.current.send(JSON.stringify({ type: "chat", text: chatInput.trim() }));
     setChatInput("");
   };
 
@@ -82,8 +87,22 @@ function Room() {
             position={position}
             onPieceDrop={onPieceDrop}
             boardOrientation={side}
+            animationDuration={0}
           />
           <div className="player-label bottom">Player: You</div>
+          <button
+            className="resign-button"
+            onClick={() => {
+              const confirmResign = window.confirm(
+                "Are you sure you want to resign?"
+              );
+              if (confirmResign) {
+                ws.current.send(JSON.stringify({ type: "resign" }));
+              }
+            }}
+          >
+            Resign
+          </button>
         </div>
 
         <aside className="room-chat">
@@ -91,10 +110,7 @@ function Room() {
           <div className="chat-panel">
             <div className="messages">
               {chatMessages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`message self`}
-                >
+                <div key={i} className={`message self`}>
                   <span className="sender">{m.username}:</span> {m.text}
                 </div>
               ))}

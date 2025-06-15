@@ -68,12 +68,17 @@ Bun.serve({
       }
 
       rooms.get(id).clients.add(ws);
-      ws.send(JSON.stringify({ type: "side", side: ws.side }));
+      ws.send(
+        JSON.stringify({
+          type: "join",
+          side: ws.side,
+          fen: rooms.get(id).game.fen(),
+        })
+      );
     },
     message(ws, message) {
       const room = rooms.get(ws.data);
       const messageObj = JSON.parse(message);
-
       if (messageObj.type === "auth" && messageObj.token !== "") {
         ws.token = messageObj.token;
         return;
@@ -90,11 +95,10 @@ Bun.serve({
         }
         let result;
         try {
-          result = room.game.move(messageObjmove);
+          result = room.game.move(messageObj.move);
         } catch {
           result = null;
         }
-
         if (room.game.isGameOver()) {
           let gameResult = "*";
 
@@ -114,7 +118,7 @@ Bun.serve({
             if (client.side === "spectator") {
               continue;
             }
-            const data = jwt.verify(client.token, ACCESS_TOKEN_SECRET);
+            const data = jwt.verify(client.token, Bun.env.ACCESS_TOKEN_SECRET);
             users[client.side] = data.userId;
           }
           room.game.setHeader("Result", gameResult);
@@ -131,6 +135,23 @@ Bun.serve({
             );
           }
         }
+      }
+      if (messageObj.type === "resign") {
+        let gameResult = room.game.turn() === "w" ? "0-1" : "1-0";
+        const users = {};
+        for (const client of room.clients) {
+          if (client.side === "spectator") {
+            continue;
+          }
+          const data = jwt.verify(client.token, Bun.env.ACCESS_TOKEN_SECRET);
+          users[client.side] = data.userId;
+        }
+        room.game.setHeader("Result", gameResult);
+        const query = db
+          .query(
+            "INSERT INTO games (white_player_id, black_player_id, result, moves) VALUES (?1, ?2, ?3, ?4);"
+          )
+          .run(users.w, users.b, gameResult, room.game.pgn());
       }
       if (messageObj.type === "chat") {
         let username;
