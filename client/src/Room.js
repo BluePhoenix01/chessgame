@@ -4,6 +4,7 @@ import useLocalStorage from "./hooks/useLocalStorage";
 import Navbar from "./components/Navbar";
 import { Chessboard } from "react-chessboard";
 import "./Room.css";
+import ResignConfirm from "./components/ResignConfirm";
 
 function Room() {
   const navigate = useNavigate();
@@ -42,12 +43,7 @@ function Room() {
           setSide(data.side === "w" ? "white" : "black");
           setPosition(data.fen);
         } else if (data.type === "position") setPosition(data.fen);
-        else if (data.type === "resign") {
-          alert(
-            `${data.winner === side ? "You win!" : "You lost by resignation."}`
-          );
-          setPosition(data.fen);
-        } else if (data.type === "chat") {
+        else if (data.type === "chat") {
           setChatMessages((messages) => [...messages, data]);
         }
       };
@@ -90,19 +86,7 @@ function Room() {
             animationDuration={0}
           />
           <div className="player-label bottom">Player: You</div>
-          <button
-            className="resign-button"
-            onClick={() => {
-              const confirmResign = window.confirm(
-                "Are you sure you want to resign?"
-              );
-              if (confirmResign) {
-                ws.current.send(JSON.stringify({ type: "resign" }));
-              }
-            }}
-          >
-            Resign
-          </button>
+          <ResignConfirm ws={ws}/>
         </div>
 
         <aside className="room-chat">
