@@ -7,6 +7,7 @@ import { Link } from "react-router";
 function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useLocalStorage("token");
+  const [username, setUsername] = useLocalStorage("username");
   const navigate = useNavigate();
 
   const handleAuthClick = () => {
@@ -42,6 +43,9 @@ function Navbar() {
         <div className="navbar-logo">ChessMate</div>
       </Link>
       <ul className="navbar-links">
+        <li className="navbar-link">
+          {isLoggedIn && <Link to="/dashboard">{username}</Link>}
+        </li>
         <button className="auth-button" onClick={handleAuthClick}>
           {isLoggedIn ? "Logout" : "Login"}
         </button>

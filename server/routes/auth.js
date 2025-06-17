@@ -29,7 +29,7 @@ export const authRoutes = {
             { expiresIn: "7d" }
           );
           return Response.json(
-            { accessToken },
+            { accessToken, username: user.username },
             {
               status: 200,
               headers: {
@@ -97,7 +97,7 @@ export const authRoutes = {
           { expiresIn: "7d" }
         );
         return Response.json(
-          { accessToken },
+          { accessToken, username: user.username },
           {
             status: 200,
             headers: {

@@ -8,6 +8,7 @@ import "./Login.css";
 
 function Login({ isLogin }) {
   const [token, setToken] = useLocalStorage("token");
+  const [username, setUsername] = useLocalStorage("username");
   const navigate = useNavigate();
   const [isSignup, setIsSignup] = useState(!isLogin);
   const [formData, setFormData] = useState({
@@ -45,6 +46,7 @@ function Login({ isLogin }) {
 
       const data = await res.json();
       setToken(data.accessToken);
+      setUsername(data.username);
       navigate("/");
     } catch (err) {
       toast.error("Network error, please try again", {

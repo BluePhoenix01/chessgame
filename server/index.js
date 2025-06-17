@@ -2,6 +2,7 @@ import { Chess } from "chess.js";
 import { Database } from "bun:sqlite";
 import jwt from "jsonwebtoken";
 import { authRoutes } from "./routes/auth";
+import { userRoutes } from "./routes/user";
 
 const rooms = new Map();
 const db = new Database("mydb.sqlite", { create: true, strict: true });
@@ -25,6 +26,7 @@ Bun.serve({
     "/api/status": new Response("OK"),
 
     ...authRoutes,
+    ...userRoutes,
 
     "/createroom": {
       POST: (_req) => {
@@ -55,7 +57,12 @@ Bun.serve({
       // const id = crypto.randomUUID();
       const id = ws.data;
       if (!rooms.get(id)) {
-        rooms.set(id, { clients: new Set(), game: new Chess() });
+        rooms.set(id, {
+          clients: new Set(),
+          game: new Chess(),
+          whitePlayer: null,
+          blackPlayer: null,
+        });
       }
 
       if (rooms.get(id).clients.size === 0) {
@@ -79,8 +86,32 @@ Bun.serve({
     message(ws, message) {
       const room = rooms.get(ws.data);
       const messageObj = JSON.parse(message);
+
       if (messageObj.type === "auth" && messageObj.token !== "") {
         ws.token = messageObj.token;
+        try {
+          const authData = jwt.verify(ws.token, Bun.env.ACCESS_TOKEN_SECRET);
+          if (authData) {
+            if (!room.whitePlayer && ws.side === "w") {
+              room.whitePlayer = authData.username;
+              room.game.setHeader("White", authData.username);
+            } else if (!room.blackPlayer && ws.side === "b") {
+              room.blackPlayer = authData.username;
+              room.game.setHeader("Black", authData.username);
+            }
+          }
+        } catch (err) {
+          console.error(err);
+        }
+        for (const client of room.clients) {
+          client.send(
+            JSON.stringify({
+              type: "players",
+              whitePlayer: room.whitePlayer,
+              blackPlayer: room.blackPlayer,
+            })
+          );
+        }
         return;
       }
 

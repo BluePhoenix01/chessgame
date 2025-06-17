@@ -13,10 +13,25 @@ function Room() {
   const [position, setPosition] = useState(
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
   );
+  const [users, setUsers] = useState({
+    white: null,
+    black: null,
+  });
   const [side, setSide] = useState("white");
+  const [moveHistory, setMoveHistory] = useState([]);
+  const [currentFen, setCurrentFen] = useState(null);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const ws = useRef(null);
+
+  const groupedMoves = moveHistory.reduce((acc, move, index) => {
+    const turnIndex = Math.floor(index / 2);
+    if (!acc[turnIndex])
+      acc[turnIndex] = { number: turnIndex + 1, white: null, black: null };
+    if (index % 2 === 0) acc[turnIndex].white = { ...move, index };
+    else acc[turnIndex].black = { ...move, index };
+    return acc;
+  }, []);
 
   useEffect(() => {
     if (!ws.current) {
@@ -42,8 +57,21 @@ function Room() {
         if (data.type === "join") {
           setSide(data.side === "w" ? "white" : "black");
           setPosition(data.fen);
-        } else if (data.type === "position") setPosition(data.fen);
-        else if (data.type === "chat") {
+        } else if (data.type === "players") {
+          setUsers((prev) => ({
+            white: data.whitePlayer,
+            black: data.blackPlayer,
+          }));
+        } else if (data.type === "position") {
+          setPosition(data.fen);
+          setCurrentFen(data.fen);
+          if (data.result?.san) {
+            setMoveHistory((prev) => [
+              ...prev,
+              { fen: data.fen, san: data.result.san },
+            ]);
+          }
+        } else if (data.type === "chat") {
           setChatMessages((messages) => [...messages, data]);
         }
       };
@@ -77,7 +105,7 @@ function Room() {
         </aside>
 
         <div className="board-container">
-          <div className="player-label top">Player: Opponent</div>
+          <div className="player-label top">Player: {(side === "black" ? users.white : users.black) || "Opponent"}</div>
           <Chessboard
             boardWidth={600}
             position={position}
@@ -85,11 +113,42 @@ function Room() {
             boardOrientation={side}
             animationDuration={0}
           />
-          <div className="player-label bottom">Player: You</div>
-          <ResignConfirm ws={ws}/>
+          <div className="player-label bottom">Player: {(side === "black" ? users.black : users.white) || "You"}</div>
+          <ResignConfirm ws={ws} />
         </div>
 
         <aside className="room-chat">
+          <h3>Moves</h3>
+          <div className="move-history">
+            {groupedMoves.map((turn) => (
+              <div key={turn.number} className="move-row">
+                <span className="turn-num">{turn.number}.</span>
+                <span
+                  className="move white"
+                  onClick={() => setPosition(moveHistory[turn.white.index].fen)}
+                >
+                  {turn.white?.san}
+                </span>
+                <span
+                  className="move black"
+                  onClick={() =>
+                    turn.black && setPosition(moveHistory[turn.black.index].fen)
+                  }
+                >
+                  {turn.black?.san}
+                </span>
+              </div>
+            ))}
+            {position !== currentFen && (
+              <button
+                className="back-to-live"
+                onClick={() => setPosition(currentFen)}
+                style={{ marginTop: "10px" }}
+              >
+                Back to Live
+              </button>
+            )}
+          </div>
           <h3>Chat</h3>
           <div className="chat-panel">
             <div className="messages">
