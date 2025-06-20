@@ -6,12 +6,15 @@ import Navbar from "./components/Navbar";
 import "./DashBoard.css";
 
 function Dashboard() {
+  const startingPosition =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
   const navigate = useNavigate();
   const [token, setToken] = useLocalStorage("token");
   const [user, setUser] = useState(null);
   const [games, setGames] = useState([]);
+  const [lastPage, setLastPage] = useState(false);
   const [page, setPage] = useState(1);
-  const [fen, setFen] = useState("start");
+  const [fen, setFen] = useState(startingPosition);
   const [roomIdInput, setRoomIdInput] = useState("");
 
   useEffect(() => {
@@ -27,7 +30,10 @@ function Dashboard() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setGames(data.games || []));
+      .then((data) => {
+        setLastPage(data.lastPage);
+        setGames(data.games || []);
+      });
   }, [page, token]);
 
   const createRoom = async () => {
@@ -80,6 +86,9 @@ function Dashboard() {
                 return true;
               }}
             />
+            <button className="reset-button" onClick={() => setFen(startingPosition)}>
+              Reset Board
+            </button>
           </div>
 
           <div className="game-history">
@@ -87,7 +96,7 @@ function Dashboard() {
             <ul>
               {games.map((game, i) => (
                 <li key={i}>
-                  {game.date} vs {game.opponent} - {game.result}
+                  {game.white_username} vs {game.black_username} - {game.result}
                   <button onClick={() => setFen(game.fen)}>View</button>
                 </li>
               ))}
@@ -97,7 +106,9 @@ function Dashboard() {
                 Prev
               </button>
               <span>Page {page}</span>
-              <button onClick={() => setPage(page + 1)}>Next</button>
+              <button onClick={() => setPage(page + 1)} disabled={lastPage}>
+                Next
+              </button>
             </div>
           </div>
         </div>
