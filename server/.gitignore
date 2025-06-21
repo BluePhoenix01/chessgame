@@ -29,6 +29,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Database
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # IntelliJ based IDEs
 .idea
