@@ -9,6 +9,7 @@ import { logger } from "hono/logger";
 import { Chess } from "chess.js";
 import crypto from "bun:crypto";
 import { trimTrailingSlash } from "hono/trailing-slash";
+import {rateLimiter} from "hono-rate-limiter";
 
 const app = new Hono();
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -28,6 +29,22 @@ app.use(
   })
 );
 app.use(trimTrailingSlash());
+app.use("*", rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => {
+    const auth = c.req.header("Authorization") || "";
+    const token = auth.split(" ")[1];
+    if (!token) return "anonymous";
+    try {
+      const data = jwt.verify(token, Bun.env.ACCESS_TOKEN_SECRET);
+      return data.userId;
+    } catch {
+      return "anonymous";
+    }
+  },
+}));
 
 app.route("/auth", authRoutes);
 app.route("/api/user", userRoutes);
