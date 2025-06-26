@@ -31,7 +31,12 @@ function App() {
   };
 
   const handleCreate = () => {
-    fetch("/createroom", { method: "POST" })
+    fetch("/createroom", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+      mode: "cors",
+    })
       .then((res) => res.json())
       .then((data) => navigate(`/room/${data.roomId}`));
   };

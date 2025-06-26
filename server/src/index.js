@@ -54,8 +54,18 @@ app.get("/", (c) => {
 });
 
 app.post("/createroom", async (c) => {
-  const roomId = crypto.randomUUID();
-  return c.json({ roomId }, 200);
+  const auth = c.req.header("Authorization") || "";
+  const token = auth.split(" ")[1];
+  if (!token) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  try {
+    jwt.verify(token, Bun.env.ACCESS_TOKEN_SECRET);
+    const roomId = crypto.randomUUID();
+    return c.json({ roomId }, 200);
+  } catch {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 });
 
 app.get(
