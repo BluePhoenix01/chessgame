@@ -1,18 +1,24 @@
 import { Database } from "bun:sqlite";
 
-const db = new Database("mydb.sqlite", { create: true, strict: true, } );
+import path from "node:path";
 
-db.exec("PRAGMA journal_mode = WAL;");
-db.exec("PRAGMA foreign_keys = ON;");
-db.run(`CREATE TABLE IF NOT EXISTS users (
+const baseDir = import.meta.dir;
+const dbFile = path.resolve(baseDir, "../mydb.sqlite");
+
+export function createDatabase(name) {
+  const db = new Database(name, { create: true, strict: true });
+
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA foreign_keys = ON;");
+  db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);`);
+    );`);
 
-db.run(`CREATE TABLE IF NOT EXISTS games (
+  db.run(`CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     white_player_id INTEGER NOT NULL,
     black_player_id INTEGER NOT NULL,
@@ -21,8 +27,7 @@ db.run(`CREATE TABLE IF NOT EXISTS games (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (white_player_id) REFERENCES users(id),
     FOREIGN KEY (black_player_id) REFERENCES users(id)
-);`);
+    );`);
+}
 
-const result = db.query("PRAGMA foreign_keys;").get();
-console.log(result); 
-
+createDatabase(dbFile);

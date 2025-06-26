@@ -1,14 +1,11 @@
-# chessgame
-
 To install dependencies:
-
-```bash
+```sh
 bun install
 ```
 
 To run:
-
-```bash
-bun run index.ts
+```sh
+bun run dev
 ```
 
+open http://localhost:3000
