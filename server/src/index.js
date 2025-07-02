@@ -131,11 +131,11 @@ app.get(
         }
 
         let authData;
-        try {
-          authData = jwt.verify(token, Bun.env.ACCESS_TOKEN_SECRET);
-        } catch {
-          return;
-        }
+        // try {
+        //   authData = jwt.verify(token, Bun.env.ACCESS_TOKEN_SECRET);
+        // } catch {
+        //   return;
+        // }
 
         if (msg.type === "move") {
           if (room.game.turn() !== side) return;
